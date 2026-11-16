@@ -6,7 +6,7 @@ const backend = z.looseObject({
   cookie: z
     .literal(`${bitcoindMountpoint}/.cookie`)
     .catch(`${bitcoindMountpoint}/.cookie`),
-  poll_interval: z.number().int().min(100).catch(500),
+  poll_interval: z.number().int().min(100).max(4_294_967_295).catch(500),
 })
 
 const pogolo = z.looseObject({
@@ -17,8 +17,8 @@ const pogolo = z.looseObject({
   pool_address: z.string().optional().catch(undefined),
   password: z.string().optional().catch(undefined),
   default_difficulty: z.number().min(0.16).catch(1024),
-  job_interval: z.number().int().min(1).catch(60),
-  target_share_interval: z.number().int().min(1).catch(5),
+  job_interval: z.number().int().min(1).max(65_535).catch(60),
+  target_share_interval: z.number().int().min(1).max(65_535).catch(5),
 })
 
 const shape = z.looseObject({

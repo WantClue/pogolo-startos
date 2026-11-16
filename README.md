@@ -65,7 +65,7 @@ pogolo has no database: miners, shares and found blocks live in memory and reset
 
 The package owns one file, `pogolo.toml` on the `main` volume (`startos/fileModels/pogolo.toml.ts`).
 
-It is seeded with defaults on install and merged back into shape on every init. The package re-asserts `backend.cookie`, `pogolo.host`, `pogolo.port` and `pogolo.http_port` — a hand edit to those reverts. Every other modeled key (`tag`, `pool_address`, `password`, `default_difficulty`, `job_interval`, `target_share_interval`, `backend.poll_interval`) is the user's, written by the Configure action. Upstream keys the package does not model (`disable_vardiff`, `ignore_suggested_difficulty`, `extranonce2_size`, …) survive a hand edit and an action write.
+It is seeded with defaults on install and merged back into shape on every init. The package re-asserts `backend.cookie`, `pogolo.host`, `pogolo.port` and `pogolo.http_port` — a hand edit to those reverts. Every other modeled key (`tag`, `pool_address`, `password`, `default_difficulty`, `job_interval`, `target_share_interval`, `backend.poll_interval`) is the user's, written by the Configure action. `job_interval` and `target_share_interval` are capped at 65535 because upstream parses them as uint16 since v1.1.7. Upstream keys the package does not model (`share_batch_window`, `wait_for_sync`, `authority_keypair`, `disable_vardiff`, `ignore_suggested_difficulty`, `extranonce2_size`, …) survive a hand edit and an action write.
 
 pogolo refuses to start on a key it does not recognise, so a misspelled hand-added key stops the service with `unknown keys in config` in the log.
 

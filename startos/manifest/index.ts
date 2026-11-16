@@ -13,7 +13,7 @@ export const manifest = setupManifest({
   volumes: ['main'],
   images: {
     pogolo: {
-      source: { dockerTag: '0xf0xx0/pogolo:v1.1.6' },
+      source: { dockerTag: '0xf0xx0/pogolo:v1.1.7' },
       arch: ['x86_64', 'aarch64'],
       emulateMissing: false,
     },
