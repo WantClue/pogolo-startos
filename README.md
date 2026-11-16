@@ -144,7 +144,8 @@ Nothing else needs rebuilding — pogolo keeps no state of its own, and miners r
 2. The `host` listen setting is fixed to `::`: pogolo's Stratum and HTTP API listeners accept both IPv4 and IPv6 inside its container.
 3. The dashboard and hashrate history are this package's own, not upstream's. History covers only the time the service was running; gaps longer than three minutes are drawn as breaks.
 4. pogolo prints the Stratum V1 password in its log when one is set.
-5. A Stratum V2 client that verifies the pool's authority key must be given the public key shown on the dashboard (or `authorityPubkey` in `/api/v1/info`); without it the handshake fails with `Invalid Certificate`. Deleting `authority_keypair` from `pogolo.toml` makes init generate a new key, and every such client must then be updated.
+5. pogolo 1.1.7 rejects a username with no `.` (a bare address), whether or not it is a valid address: Stratum V2 miners get `OpenStandardMiningChannel.Error` (`0x12`), Stratum V1 miners an `Unprocessable` error, and pogolo logs `failed decoding address`. If a default payout address is set, such a miner instead mines to the default address. Upstream regression from commit `d49e620`, fixed on upstream `logopo` (Nov 2026) but not yet in a tag; the workaround is `address.worker`.
+6. A Stratum V2 client that verifies the pool's authority key must be given the public key shown on the dashboard (or `authorityPubkey` in `/api/v1/info`); without it the handshake fails with `Invalid Certificate`. Deleting `authority_keypair` from `pogolo.toml` makes init generate a new key, and every such client must then be updated.
 
 ---
 

@@ -22,7 +22,7 @@ Open the **Web UI**. The **Connect your miners** card at the top lists everythin
 
 If your server has more than one address, pick the one your miners can reach from the list. Use a LAN address — miners cannot connect over Tor.
 
-Use your Bitcoin address as the worker username, for example `bc1q….worker1`. Every block a miner finds pays out to the address it mines with. If you set a default payout address, a miner whose username is not an address mines to it instead.
+Use your Bitcoin address followed by a worker name as the username, for example `bc1q….worker1`. Always include the `.worker1` part: pogolo 1.1.7 rejects a username that is only an address, and the miner shows the channel or login being refused. Every block a miner finds pays out to the address it mines with. If you set a default payout address, a miner whose username is not an address mines to it instead.
 
 ## Watching the pool
 

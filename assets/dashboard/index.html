@@ -821,7 +821,7 @@
         setCopy('c-user', null, 'yourBitcoinAddress.workerName')
         $('c-user-hint').textContent = payout
           ? `Blocks pay the Bitcoin address in the username. A miner whose username is not an address mines to the default payout address ${payout}.`
-          : 'Blocks pay the Bitcoin address in the username, so every miner must use its own address. The worker name after the dot is optional.'
+          : 'Blocks pay the Bitcoin address in the username, so every miner must use its own address. Always add a worker name after the dot (for example .bitaxe1): pogolo 1.1.7 rejects a username that is only an address.'
 
         if (connection?.passwordRequired) {
           setCopy('c-pass', null, 'the Stratum V1 password')
