@@ -40,11 +40,11 @@ pogolo runs from the unmodified upstream image; an nginx image serves the packag
 | Architectures | x86_64, aarch64                                                   |
 | Entrypoint    | `/pogolo --conf /data/pogolo.toml`                                |
 
-| Subcontainer  | Image    | Purpose                                                                         |
-| ------------- | -------- | ------------------------------------------------------------------------------- |
-| `pogolo-sub`  | `pogolo` | The `primary` daemon: pogolo itself                                             |
-| `ui-sub`      | `nginx`  | The `ui` daemon: serves the dashboard and proxies `/api/` to pogolo             |
-| `sampler-sub` | `nginx`  | The `sampler` daemon: appends the pool hashrate to `hashrate.csv` once a minute |
+| Subcontainer  | Image    | Purpose                                                                                |
+| ------------- | -------- | -------------------------------------------------------------------------------------- |
+| `pogolo-sub`  | `pogolo` | The `primary` daemon: pogolo itself                                                    |
+| `ui-sub`      | `nginx`  | The `ui` daemon: serves the dashboard and `connection.json`, proxies `/api/` to pogolo |
+| `sampler-sub` | `nginx`  | The `sampler` daemon: appends the pool hashrate to `hashrate.csv` once a minute        |
 
 pogolo runs with `NO_COLOR=1`. Upstream still emits a few ANSI bold/reset sequences, so log lines can end in `[0m`; that is cosmetic.
 
@@ -54,20 +54,22 @@ pogolo keeps no history, so the sampler reads `/api/v1/info` every minute and ap
 
 One volume holds pogolo's config and the dashboard's history; Bitcoin's volume is mounted read-only for its RPC cookie.
 
-| Volume              | Mount Point     | Purpose                                                      |
-| ------------------- | --------------- | ------------------------------------------------------------ |
-| `main`              | `/data`         | `pogolo.toml`, `hashrate.csv`. Read-only in `ui-sub`         |
-| `bitcoind` / `main` | `/mnt/bitcoind` | Read-only, in `pogolo-sub` only, for Bitcoin's RPC `.cookie` |
+| Volume              | Mount Point     | Purpose                                                                 |
+| ------------------- | --------------- | ----------------------------------------------------------------------- |
+| `main`              | `/data`         | `pogolo.toml`, `hashrate.csv`, `connection.json`. Read-only in `ui-sub` |
+| `bitcoind` / `main` | `/mnt/bitcoind` | Read-only, in `pogolo-sub` only, for Bitcoin's RPC `.cookie`            |
 
 pogolo has no database: miners, shares and found blocks live in memory and reset on every restart.
 
 ## File Models
 
-The package owns one file, `pogolo.toml` on the `main` volume (`startos/fileModels/pogolo.toml.ts`).
+The package owns two files on the `main` volume: `pogolo.toml` (`startos/fileModels/pogolo.toml.ts`), pogolo's config, and `connection.json` (`startos/fileModels/connection.json.ts`), which only feeds the dashboard.
 
-It is seeded with defaults on install and merged back into shape on every init. The package re-asserts `backend.cookie`, `pogolo.host`, `pogolo.port` and `pogolo.http_port` — a hand edit to those reverts. Every other modeled key (`tag`, `pool_address`, `password`, `default_difficulty`, `job_interval`, `target_share_interval`, `backend.poll_interval`) is the user's, written by the Configure action. `job_interval` and `target_share_interval` are capped at 65535 because upstream parses them as uint16 since v1.1.7. Upstream keys the package does not model (`share_batch_window`, `wait_for_sync`, `authority_keypair`, `disable_vardiff`, `ignore_suggested_difficulty`, `extranonce2_size`, …) survive a hand edit and an action write.
+It is seeded with defaults on install and merged back into shape on every init. The package re-asserts `backend.cookie`, `pogolo.host`, `pogolo.port` and `pogolo.http_port` — a hand edit to those reverts. Every other modeled key (`tag`, `pool_address`, `password`, `default_difficulty`, `job_interval`, `target_share_interval`, `backend.poll_interval`) is the user's, written by the Configure action. `job_interval` and `target_share_interval` are capped at 65535 because upstream parses them as uint16 since v1.1.7. `authority_keypair` is generated once at init (see [Installation and First-Run Flow](#installation-and-first-run-flow)); a value that is not even-length hex is dropped and a new key generated, since pogolo would refuse to start on it. Upstream keys the package does not model (`share_batch_window`, `wait_for_sync`, `disable_vardiff`, `ignore_suggested_difficulty`, `extranonce2_size`, …) survive a hand edit and an action write.
 
 pogolo refuses to start on a key it does not recognise, so a misspelled hand-added key stops the service with `unknown keys in config` in the log.
+
+`connection.json` is rewritten by `main.ts` on every start, and again whenever the Stratum Server's addresses change (without restarting pogolo). It holds the interface's private, non-local addresses with their StartOS-assigned port, whether a Stratum V1 password is set, and the default payout address. nginx serves it as `/connection.json` to the dashboard's **Connect your miners** card. Nothing reads it back.
 
 The Bitcoin RPC host and ZMQ endpoint are not in the file: `main.ts` resolves them from Bitcoin's bridge addresses at each start and passes them as `POGOLO_BACKEND_HOST` and `POGOLO_BACKEND_ZMQHOST`, which override the file. Any edit to `pogolo.toml` restarts the service.
 
@@ -99,6 +101,10 @@ There is no setup wizard and no credential. pogolo starts with upstream defaults
 
 On install, the package asks Bitcoin to enable ZMQ (see [Tasks](#tasks)). pogolo then waits on Bitcoin being fully synced before it starts.
 
+On every init, if `pogolo.toml` has no `authority_keypair`, the package runs `pogolo --generate-authority-key` once in a temporary pogolo subcontainer and stores the keypair. pogolo then keeps the same Stratum V2 authority key across restarts and reports its public half as `authorityPubkey` in `/api/v1/info`, which the dashboard shows. If generation fails, init logs `Could not generate a Stratum V2 authority key` and continues; pogolo falls back to a per-start key, and the next init retries.
+
+The dashboard's **Connect your miners** card shows the Stratum V1 and V2 URLs, host and port, the authority public key, and the username and password rules. It opens on its own while no miner is connected.
+
 ## Actions
 
 The package has one action.
@@ -128,7 +134,7 @@ pogolo listens as soon as it has connected to Bitcoin, so a failing **Stratum Se
 
 ## Backups and Restore
 
-The `main` volume is copied wholesale: `pogolo.toml` and `hashrate.csv`.
+The `main` volume is copied wholesale: `pogolo.toml` (including the Stratum V2 authority keypair, so miners configured with its public key keep working after a restore), `hashrate.csv` and `connection.json`.
 
 Nothing else needs rebuilding — pogolo keeps no state of its own, and miners reconnect after the restore. Bitcoin must be installed, synced and have ZMQ enabled before the restored service will start.
 
@@ -138,7 +144,7 @@ Nothing else needs rebuilding — pogolo keeps no state of its own, and miners r
 2. The `host` listen setting is fixed to `::`: pogolo's Stratum and HTTP API listeners accept both IPv4 and IPv6 inside its container.
 3. The dashboard and hashrate history are this package's own, not upstream's. History covers only the time the service was running; gaps longer than three minutes are drawn as breaks.
 4. pogolo prints the Stratum V1 password in its log when one is set.
-5. pogolo generates a new Stratum V2 authority key on every start and never publishes it, so a V2 client that verifies the pool's authority key cannot connect: the handshake fails with `Invalid Certificate`. Start9's Stratum V2 package (SRI Translator) is one such client. This is upstream behavior.
+5. A Stratum V2 client that verifies the pool's authority key must be given the public key shown on the dashboard (or `authorityPubkey` in `/api/v1/info`); without it the handshake fails with `Invalid Certificate`. Deleting `authority_keypair` from `pogolo.toml` makes init generate a new key, and every such client must then be updated.
 
 ---
 
@@ -153,6 +159,7 @@ volumes:
   main: /data
 file_models:
   - /data/pogolo.toml
+  - /data/connection.json
 startos_managed_env_vars:
   - POGOLO_BACKEND_HOST
   - POGOLO_BACKEND_ZMQHOST

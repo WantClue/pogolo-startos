@@ -1,8 +1,10 @@
 import { FileHelper } from '@start9labs/start-sdk'
 import { manifest as bitcoinManifest } from 'bitcoin-core-startos/startos/manifest'
 import { dependencies } from './dependencies'
+import { connectionJson } from './fileModels/connection.json'
 import { pogoloToml } from './fileModels/pogolo.toml'
 import { i18n } from './i18n'
+import { mainHostId, stratumInterfaceId } from './interfaces'
 import { sdk } from './sdk'
 import {
   bitcoindMountpoint,
@@ -27,7 +29,39 @@ export const main = sdk.setupMain(async ({ effects }) => {
     )
 
   // restart pogolo whenever the user changes its config
-  await pogoloToml.read().const(effects)
+  const conf = await pogoloToml.read().const(effects)
+
+  // the dashboard's "Connect your miners" card: the Stratum Server's LAN
+  // addresses (with the port StartOS assigned) and what miners must send.
+  // Kept current with onChange, so an address change doesn't restart pogolo.
+  const stratumUrls = sdk.host.getOwn(
+    effects,
+    mainHostId,
+    (host) =>
+      host?.bindings[stratumPort]?.interfaces[
+        stratumInterfaceId
+      ]?.addressInfo?.nonLocal
+        .filter({ visibility: 'private' })
+        .format('urlstring') ?? [],
+  )
+  const writeConnection = (urls: string[]) =>
+    connectionJson.write(effects, {
+      addresses: urls.flatMap((u) => {
+        try {
+          const url = new URL(u)
+          return [{ host: url.hostname, port: Number(url.port) || stratumPort }]
+        } catch {
+          return []
+        }
+      }),
+      passwordRequired: !!conf?.pogolo.password,
+      defaultPayoutAddress: conf?.pogolo.pool_address || null,
+    })
+  await writeConnection(await stratumUrls.once())
+  stratumUrls.onChange(async (urls) => {
+    if (urls) await writeConnection(urls)
+    return { cancel: false }
+  })
 
   const sub = await sdk.SubContainer.of(
     effects,

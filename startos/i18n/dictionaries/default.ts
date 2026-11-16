@@ -41,6 +41,9 @@ const dict = {
 
   // actions/config.ts
   'Must be a Bitcoin address': 28,
+
+  // init/authorityKey.ts
+  'Could not generate a Stratum V2 authority key': 29,
 } as const
 
 /**

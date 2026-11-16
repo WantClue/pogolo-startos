@@ -281,6 +281,108 @@
       .rej {
         color: var(--text-muted);
       }
+      details.card > summary {
+        cursor: pointer;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      details.card > summary::-webkit-details-marker {
+        display: none;
+      }
+      details.card > summary::before {
+        content: '▸';
+        color: var(--text-muted);
+        transition: transform 0.15s;
+      }
+      details.card[open] > summary::before {
+        transform: rotate(90deg);
+      }
+      details.card > summary h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      details.card[open] > summary {
+        margin-bottom: 16px;
+      }
+      .connect-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+      }
+      .connect-block h3 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-weight: 500;
+      }
+      .field {
+        margin-bottom: 10px;
+      }
+      .field .label {
+        color: var(--text-muted);
+        font-size: 12px;
+        margin-bottom: 2px;
+      }
+      .copy-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .copy-row code {
+        flex: 1;
+        min-width: 0;
+        font-family: var(--mono);
+        font-size: 13px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 5px 8px;
+        overflow-wrap: anywhere;
+      }
+      .copy-row button,
+      .connect-host select {
+        font: inherit;
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 4px 10px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .connect-host {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+        color: var(--text-secondary);
+        font-size: 13px;
+      }
+      .connect-host select {
+        font-family: var(--mono);
+        max-width: 100%;
+      }
+      .hint {
+        color: var(--text-muted);
+        font-size: 12px;
+        margin: 4px 0 0;
+      }
+      .notice {
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--critical);
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+      }
       footer {
         color: var(--text-muted);
         font-size: 12px;
@@ -328,6 +430,61 @@
           <div class="value" id="t-uptime">–</div>
         </div>
       </section>
+
+      <details class="card" id="connect">
+        <summary><h2>Connect your miners</h2></summary>
+        <div class="notice" id="connect-onion" hidden>
+          You opened this page over Tor. Miners can't use Tor — use one of the
+          LAN addresses below.
+        </div>
+        <div class="connect-host" id="connect-host" hidden>
+          <label for="host-select">Server address</label>
+          <select id="host-select"></select>
+        </div>
+        <div class="connect-grid">
+          <div class="connect-block">
+            <h3>Stratum V1</h3>
+            <div class="field">
+              <div class="label">URL</div>
+              <div class="copy-row"><code id="c-v1"></code></div>
+            </div>
+            <div class="field">
+              <div class="label">
+                Host and port (for miners with separate fields, like Bitaxe)
+              </div>
+              <div class="copy-row"><code id="c-host"></code></div>
+              <div class="copy-row" style="margin-top: 6px">
+                <code id="c-port"></code>
+              </div>
+            </div>
+          </div>
+          <div class="connect-block">
+            <h3>Stratum V2</h3>
+            <div class="field">
+              <div class="label">URL</div>
+              <div class="copy-row"><code id="c-v2"></code></div>
+            </div>
+            <div class="field">
+              <div class="label">Authority public key</div>
+              <div class="copy-row"><code id="c-pubkey">–</code></div>
+              <p class="hint" id="c-pubkey-hint"></p>
+            </div>
+          </div>
+          <div class="connect-block">
+            <h3>Credentials</h3>
+            <div class="field">
+              <div class="label">Username</div>
+              <div class="copy-row"><code id="c-user"></code></div>
+              <p class="hint" id="c-user-hint"></p>
+            </div>
+            <div class="field">
+              <div class="label">Password</div>
+              <div class="copy-row"><code id="c-pass"></code></div>
+              <p class="hint" id="c-pass-hint"></p>
+            </div>
+          </div>
+        </div>
+      </details>
 
       <section class="card">
         <div class="card-head">
@@ -471,6 +628,15 @@
           ])
           renderInfo(info)
           renderMiners(gophers)
+          if (info.authorityPubkey !== authorityPubkey) {
+            authorityPubkey = info.authorityPubkey || ''
+            renderConnection()
+          }
+          // open the connect card for a pool with no miners yet, once
+          if (!connectAutoOpened) {
+            connectAutoOpened = true
+            if (!(gophers || []).length) $('connect').open = true
+          }
           setStatus(
             true,
             info.blockHeight
@@ -585,6 +751,126 @@
         $('miners').replaceChildren(...rows)
         $('miners-empty').hidden = rows.length > 0
       }
+
+      // ---------- connect card ----------
+      let connection = null // /connection.json, written by the package
+      let authorityPubkey = ''
+      let connectAutoOpened = false
+
+      async function refreshConnection() {
+        try {
+          const res = await fetch('connection.json', { cache: 'no-store' })
+          if (res.ok) connection = await res.json()
+        } catch {}
+        renderConnection()
+      }
+
+      // IPv4 first (what most miners want), then .local, then the rest
+      function hostRank(h) {
+        if (/^\d+\.\d+\.\d+\.\d+$/.test(h)) return 0
+        if (h.endsWith('.local')) return 1
+        return 2
+      }
+
+      function hostOptions() {
+        const list = (connection?.addresses || [])
+          .slice()
+          .sort((a, b) => hostRank(a.host) - hostRank(b.host))
+        if (list.length) return list
+        // no connection.json yet: fall back to the address this page is on
+        if (location.hostname.endsWith('.onion')) return []
+        return [{ host: location.hostname, port: 5661 }]
+      }
+
+      function renderConnection() {
+        const opts = hostOptions()
+        const sel = $('host-select')
+        const prev = sel.value
+        const values = opts.map((o) => `${o.host}:${o.port}`)
+        if (
+          sel.options.length !== values.length ||
+          [...sel.options].some((o, i) => o.value !== values[i])
+        ) {
+          sel.replaceChildren(
+            ...opts.map((o, i) => {
+              const opt = el('option', { text: values[i] })
+              opt.value = values[i]
+              return opt
+            }),
+          )
+          // prefer what the user picked, then the address this page is on
+          const here = values.find((v) => v.startsWith(location.hostname + ':'))
+          sel.value = values.includes(prev) ? prev : here || values[0] || ''
+        }
+        $('connect-host').hidden = opts.length < 2
+        $('connect-onion').hidden = !location.hostname.endsWith('.onion')
+
+        const pick = opts[sel.selectedIndex] || null
+        const hostport = pick ? `${pick.host}:${pick.port}` : null
+        setCopy('c-v1', hostport && `stratum+tcp://${hostport}`)
+        setCopy('c-v2', hostport && `stratum2+tcp://${hostport}`)
+        setCopy('c-host', pick && pick.host)
+        setCopy('c-port', pick && String(pick.port))
+
+        setCopy('c-pubkey', authorityPubkey || null)
+        $('c-pubkey-hint').textContent = authorityPubkey
+          ? 'Only needed by Stratum V2 miners and proxies that ask for it. It stays the same across restarts.'
+          : 'Shown once pogolo is running.'
+
+        const payout = connection?.defaultPayoutAddress
+        setCopy('c-user', null, 'yourBitcoinAddress.workerName')
+        $('c-user-hint').textContent = payout
+          ? `Blocks pay the Bitcoin address in the username. A miner whose username is not an address mines to the default payout address ${payout}.`
+          : 'Blocks pay the Bitcoin address in the username, so every miner must use its own address. The worker name after the dot is optional.'
+
+        if (connection?.passwordRequired) {
+          setCopy('c-pass', null, 'the Stratum V1 password')
+          $('c-pass-hint').textContent =
+            'Stratum V1 miners must send the password set in Actions → Configure. Stratum V2 miners need none.'
+        } else {
+          setCopy('c-pass', 'x')
+          $('c-pass-hint').textContent = 'Any password works.'
+        }
+      }
+
+      // a value, or a muted placeholder with no copy button
+      function setCopy(id, value, placeholder = '–') {
+        const code = $(id)
+        const row = code.parentElement
+        row.querySelector('button')?.remove()
+        code.textContent = value ?? placeholder
+        code.style.color = value == null ? 'var(--text-muted)' : ''
+        if (value == null) return
+        const btn = el('button', { text: 'Copy' })
+        btn.type = 'button'
+        btn.addEventListener('click', async () => {
+          btn.textContent = (await copyText(value)) ? 'Copied' : 'Select & copy'
+          setTimeout(() => (btn.textContent = 'Copy'), 1500)
+        })
+        row.append(btn)
+      }
+
+      // the dashboard is usually plain http on the LAN, where
+      // navigator.clipboard is unavailable; fall back to execCommand
+      async function copyText(text) {
+        try {
+          await navigator.clipboard.writeText(text)
+          return true
+        } catch {}
+        const ta = el('textarea', { text })
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.append(ta)
+        ta.select()
+        let ok = false
+        try {
+          ok = document.execCommand('copy')
+        } catch {}
+        ta.remove()
+        return ok
+      }
+
+      $('host-select').addEventListener('change', renderConnection)
 
       // ---------- chart ----------
       const NS = 'http://www.w3.org/2000/svg'
@@ -778,8 +1064,10 @@
 
       refreshInfo().then(drawChart)
       refreshHistory()
+      refreshConnection()
       setInterval(() => refreshInfo().then(drawChart), INFO_INTERVAL)
       setInterval(refreshHistory, HISTORY_INTERVAL)
+      setInterval(refreshConnection, HISTORY_INTERVAL)
     </script>
   </body>
 </html>

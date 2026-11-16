@@ -19,6 +19,13 @@ const pogolo = z.looseObject({
   default_difficulty: z.number().min(0.16).catch(1024),
   job_interval: z.number().int().min(1).max(65_535).catch(60),
   target_share_interval: z.number().int().min(1).max(65_535).catch(5),
+  // hex-encoded SV2 authority keypair, generated once by init/authorityKey.ts.
+  // An invalid value is dropped (and regenerated) rather than stopping pogolo.
+  authority_keypair: z
+    .string()
+    .regex(/^(?:[0-9a-fA-F]{2})+$/)
+    .optional()
+    .catch(undefined),
 })
 
 const shape = z.looseObject({

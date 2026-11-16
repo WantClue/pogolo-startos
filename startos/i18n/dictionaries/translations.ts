@@ -31,6 +31,7 @@ export default {
     26: 'Interfaz web',
     27: 'Panel del pool con gráfico de hashrate y mineros conectados',
     28: 'Debe ser una dirección Bitcoin',
+    29: 'No se pudo generar una clave de autoridad de Stratum V2',
   },
   de_DE: {
     0: 'Starte pogolo!',
@@ -62,6 +63,7 @@ export default {
     26: 'Weboberfläche',
     27: 'Pool-Dashboard mit Hashrate-Diagramm und verbundenen Minern',
     28: 'Muss eine Bitcoin-Adresse sein',
+    29: 'Stratum-V2-Authority-Key konnte nicht erzeugt werden',
   },
   pl_PL: {
     0: 'Uruchamianie pogolo!',
@@ -93,6 +95,7 @@ export default {
     26: 'Interfejs webowy',
     27: 'Panel puli z wykresem hashrate i podłączonymi koparkami',
     28: 'Musi być adresem Bitcoin',
+    29: 'Nie udało się wygenerować klucza autoryzacji Stratum V2',
   },
   fr_FR: {
     0: 'Démarrage de pogolo !',
@@ -124,5 +127,6 @@ export default {
     26: 'Interface web',
     27: 'Tableau de bord du pool avec graphique du hashrate et mineurs connectés',
     28: 'Doit être une adresse Bitcoin',
+    29: "Impossible de générer une clé d'autorité Stratum V2",
   },
 } satisfies Record<string, LangDict>

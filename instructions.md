@@ -10,14 +10,17 @@ pogolo needs a fully synced **Bitcoin** with ZMQ enabled, and does not start unt
 
 1. When Bitcoin shows a task asking to enable ZMQ for pogolo, run it.
 2. Optionally open **Actions → Configure** to set a default payout address and your coinbase tag.
-3. Point your miners at the **Stratum Server** address (below).
+3. Open the **Web UI** and follow **Connect your miners**.
 
 ## Connecting miners
 
-Open the **Stratum Server** interface to see its address, then point each miner at it:
+Open the **Web UI**. The **Connect your miners** card at the top lists everything a miner needs, with a copy button for each:
 
-- Stratum V1: `stratum+tcp://<address>:5661`
-- Stratum V2: `stratum2+tcp://<address>:5661`
+- the Stratum V1 URL (`stratum+tcp://…`), and the host and port separately for miners such as Bitaxe that ask for them apart
+- the Stratum V2 URL (`stratum2+tcp://…`) and the pool's **authority public key**, for Stratum V2 miners and proxies that ask for one
+- what to use as username and password
+
+If your server has more than one address, pick the one your miners can reach from the list. Use a LAN address — miners cannot connect over Tor.
 
 Use your Bitcoin address as the worker username, for example `bc1q….worker1`. Every block a miner finds pays out to the address it mines with. If you set a default payout address, a miner whose username is not an address mines to it instead.
 
@@ -35,4 +38,4 @@ The **API** interface serves the same statistics as JSON at `/api/v1/info`.
 
 - pogolo is meant for your own network. Stratum is not encrypted, so don't expose the Stratum Server to the internet.
 - If you set a Stratum V1 password, it appears in pogolo's logs.
-- Stratum V2 works only with miners that don't ask for the pool's authority public key. pogolo has none to give, so Stratum V2 clients that require one, including the Stratum V2 service, cannot connect. Use Stratum V1 for those miners.
+- The authority public key stays the same across restarts and backups. Stratum V2 miners that check it won't connect without it — copy it from the dashboard.
