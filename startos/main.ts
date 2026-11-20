@@ -1,5 +1,6 @@
 import { FileHelper } from '@start9labs/start-sdk'
 import { manifest as bitcoinManifest } from 'bitcoin-core-startos/startos/manifest'
+import { rpcCookieName, rpcVolumeId } from 'bitcoin-core-startos/startos/utils'
 import { dependencies } from './dependencies'
 import { connectionJson } from './fileModels/connection.json'
 import { pogoloToml } from './fileModels/pogolo.toml'
@@ -75,7 +76,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
       })
       .mountDependency<typeof bitcoinManifest>({
         dependencyId: 'bitcoind',
-        volumeId: 'main',
+        volumeId: rpcVolumeId,
         subpath: null,
         mountpoint: bitcoindMountpoint,
         readonly: true,
@@ -84,7 +85,9 @@ export const main = sdk.setupMain(async ({ effects }) => {
   )
 
   // bitcoind rewrites its cookie on every restart; restart pogolo so it re-reads it
-  await FileHelper.string(`${await sub.rootfs}${bitcoindMountpoint}/.cookie`)
+  await FileHelper.string(
+    `${await sub.rootfs}${bitcoindMountpoint}/${rpcCookieName}`,
+  )
     .read()
     .const(effects)
 
