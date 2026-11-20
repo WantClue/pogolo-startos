@@ -2,6 +2,7 @@ import { utils } from '@start9labs/start-sdk'
 import { pogoloToml } from '../fileModels/pogolo.toml'
 import { i18n } from '../i18n'
 import { sdk } from '../sdk'
+import { maxJobInterval, maxTargetShareInterval } from '../utils'
 
 const { InputSpec, Value } = sdk
 
@@ -57,7 +58,7 @@ export const inputSpec = InputSpec.of({
     required: true,
     default: 60,
     min: 1,
-    max: 65535,
+    max: maxJobInterval,
     integer: true,
     units: 's',
   }),
@@ -69,7 +70,7 @@ export const inputSpec = InputSpec.of({
     required: true,
     default: 5,
     min: 1,
-    max: 65535,
+    max: maxTargetShareInterval,
     integer: true,
     units: 's',
   }),

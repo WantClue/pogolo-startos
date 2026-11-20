@@ -20,9 +20,9 @@ Open the **Web UI**. The **Connect your miners** card at the top lists everythin
 - the Stratum V2 URL (`stratum2+tcp://…`) and the pool's **authority public key**, for Stratum V2 miners and proxies that ask for one
 - what to use as username and password
 
-If your server has more than one address, pick the one your miners can reach from the list. Use a LAN address — miners cannot connect over Tor.
+If your server has more than one address, pick the one your miners can reach from the list. Use a LAN address — miners cannot connect over Tor. If the card has no address, enable a LAN address under **Interfaces → Stratum Server** in StartOS.
 
-Use your Bitcoin address followed by a worker name as the username, for example `bc1q….worker1`. Always include the `.worker1` part: pogolo 1.1.7 rejects a username that is only an address, and the miner shows the channel or login being refused. Every block a miner finds pays out to the address it mines with. If you set a default payout address, a miner whose username is not an address mines to it instead.
+Use your Bitcoin address followed by a worker name as the username, for example `bc1q….worker1`. Every block found pays the address before the dot. Always include the `.worker1` part: pogolo 1.1.7 treats a bare address as an invalid username. With no default payout address, the channel or login is refused. With a default payout address, a bare address or any other invalid username mines to that default instead — not to the address in the username.
 
 ## Watching the pool
 

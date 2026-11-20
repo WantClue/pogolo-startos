@@ -12,6 +12,9 @@ export const apiPort = 5662
 export const uiPort = 5663
 export const bitcoindMountpoint = '/mnt/bitcoind'
 export const configPath = '/data/pogolo.toml'
+export const maxJobInterval = 65_535
+// Upstream multiplies seconds by 1000 as a uint16 before widening.
+export const maxTargetShareInterval = 65
 
 /**
  * bitcoind's RPC and ZMQ-block endpoints over the LXC bridge. Each subscription
