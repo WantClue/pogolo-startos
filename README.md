@@ -52,12 +52,12 @@ pogolo keeps no history, so the sampler reads `/api/v1/info` every minute and ap
 
 ## Volume and Data Layout
 
-One volume holds pogolo's config and the dashboard's history; Bitcoin's volume is mounted read-only for its RPC cookie.
+One volume holds pogolo's config and the dashboard's history; Bitcoin's `public` volume, which holds only what it publishes for dependents, is mounted read-only for its RPC cookie.
 
-| Volume              | Mount Point     | Purpose                                                                 |
-| ------------------- | --------------- | ----------------------------------------------------------------------- |
-| `main`              | `/data`         | `pogolo.toml`, `hashrate.csv`, `connection.json`. Read-only in `ui-sub` |
-| `bitcoind` / `main` | `/mnt/bitcoind` | Read-only, in `pogolo-sub` only, for Bitcoin's RPC `.cookie`            |
+| Volume                | Mount Point     | Purpose                                                                 |
+| --------------------- | --------------- | ----------------------------------------------------------------------- |
+| `main`                | `/data`         | `pogolo.toml`, `hashrate.csv`, `connection.json`. Read-only in `ui-sub` |
+| `bitcoind` / `public` | `/mnt/bitcoind` | Read-only, in `pogolo-sub` only, for Bitcoin's RPC `.cookie`            |
 
 pogolo has no database: miners, shares and found blocks live in memory and reset on every restart.
 
@@ -77,9 +77,9 @@ The Bitcoin RPC host and ZMQ endpoint are not in the file: `main.ts` resolves th
 
 pogolo needs Bitcoin for block templates, block notifications and block submission.
 
-| Dependency           | Required     | Health checks that must pass | Mount                                | Purpose                                                |
-| -------------------- | ------------ | ---------------------------- | ------------------------------------ | ------------------------------------------------------ |
-| Bitcoin (`bitcoind`) | yes, running | `bitcoind`, `sync-progress`  | `main` at `/mnt/bitcoind`, read-only | RPC (cookie auth), `getblocktemplate`, ZMQ `hashblock` |
+| Dependency           | Required     | Health checks that must pass | Mount                                  | Purpose                                                |
+| -------------------- | ------------ | ---------------------------- | -------------------------------------- | ------------------------------------------------------ |
+| Bitcoin (`bitcoind`) | yes, running | `bitcoind`, `sync-progress`  | `public` at `/mnt/bitcoind`, read-only | RPC (cookie auth), `getblocktemplate`, ZMQ `hashblock` |
 
 Because `sync-progress` is required, pogolo does not start until Bitcoin has finished its initial sync. Bitcoin rewrites its cookie on every restart; pogolo restarts with it to re-read the cookie.
 

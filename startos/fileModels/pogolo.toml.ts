@@ -1,11 +1,12 @@
 import { FileHelper, z } from '@start9labs/start-sdk'
+import { rpcCookieName } from 'bitcoin-core-startos/startos/utils'
 import { sdk } from '../sdk'
 import { apiPort, bitcoindMountpoint, stratumPort } from '../utils'
 
 const backend = z.looseObject({
   cookie: z
-    .literal(`${bitcoindMountpoint}/.cookie`)
-    .catch(`${bitcoindMountpoint}/.cookie`),
+    .literal(`${bitcoindMountpoint}/${rpcCookieName}`)
+    .catch(`${bitcoindMountpoint}/${rpcCookieName}`),
   poll_interval: z.number().int().min(100).max(4_294_967_295).catch(500),
 })
 
