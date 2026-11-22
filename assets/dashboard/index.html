@@ -369,6 +369,9 @@
         font-family: var(--mono);
         max-width: 100%;
       }
+      .connect-host[hidden] {
+        display: none;
+      }
       .hint {
         color: var(--text-muted);
         font-size: 12px;
@@ -437,6 +440,7 @@
           You opened this page over Tor. Miners can't use Tor — use one of the
           LAN addresses below.
         </div>
+        <div class="notice" id="connect-unavailable" hidden></div>
         <div class="connect-host" id="connect-host" hidden>
           <label for="host-select">Server address</label>
           <select id="host-select"></select>
@@ -759,9 +763,10 @@
 
       async function refreshConnection() {
         try {
-          const res = await fetch('connection.json', { cache: 'no-store' })
-          if (res.ok) connection = await res.json()
-        } catch {}
+          connection = await getJSON('connection.json')
+        } catch {
+          connection = null
+        }
         renderConnection()
       }
 
@@ -772,21 +777,22 @@
         return 2
       }
 
+      // Miner endpoints use enabled Stratum addresses, never the Web UI origin.
       function hostOptions() {
-        const list = (connection?.addresses || [])
+        return (connection?.addresses || [])
           .slice()
           .sort((a, b) => hostRank(a.host) - hostRank(b.host))
-        if (list.length) return list
-        // no connection.json yet: fall back to the address this page is on
-        if (location.hostname.endsWith('.onion')) return []
-        return [{ host: location.hostname, port: 5661 }]
+      }
+
+      function hostPort({ host, port }) {
+        return `${host.includes(':') ? `[${host}]` : host}:${port}`
       }
 
       function renderConnection() {
         const opts = hostOptions()
         const sel = $('host-select')
         const prev = sel.value
-        const values = opts.map((o) => `${o.host}:${o.port}`)
+        const values = opts.map(hostPort)
         if (
           sel.options.length !== values.length ||
           [...sel.options].some((o, i) => o.value !== values[i])
@@ -799,14 +805,22 @@
             }),
           )
           // prefer what the user picked, then the address this page is on
-          const here = values.find((v) => v.startsWith(location.hostname + ':'))
-          sel.value = values.includes(prev) ? prev : here || values[0] || ''
+          const here = opts.findIndex(
+            (o) => o.host === location.hostname.replace(/^\[|\]$/g, ''),
+          )
+          sel.value = values.includes(prev)
+            ? prev
+            : values[here] || values[0] || ''
         }
         $('connect-host').hidden = opts.length < 2
         $('connect-onion').hidden = !location.hostname.endsWith('.onion')
+        $('connect-unavailable').hidden = opts.length > 0
+        $('connect-unavailable').textContent = connection
+          ? 'No enabled LAN Stratum address is available. Check Interfaces → Stratum Server in StartOS.'
+          : 'Connection details are unavailable. Reload this page or check Interfaces → Stratum Server in StartOS.'
 
         const pick = opts[sel.selectedIndex] || null
-        const hostport = pick ? `${pick.host}:${pick.port}` : null
+        const hostport = pick ? hostPort(pick) : null
         setCopy('c-v1', hostport && `stratum+tcp://${hostport}`)
         setCopy('c-v2', hostport && `stratum2+tcp://${hostport}`)
         setCopy('c-host', pick && pick.host)
@@ -820,10 +834,14 @@
         const payout = connection?.defaultPayoutAddress
         setCopy('c-user', null, 'yourBitcoinAddress.workerName')
         $('c-user-hint').textContent = payout
-          ? `Blocks pay the Bitcoin address in the username. A miner whose username is not an address mines to the default payout address ${payout}.`
+          ? `Use address.worker to pay the Bitcoin address in the username. A bare address or any other invalid username mines to the default payout address ${payout} instead.`
           : 'Blocks pay the Bitcoin address in the username, so every miner must use its own address. Always add a worker name after the dot (for example .bitaxe1): pogolo 1.1.7 rejects a username that is only an address.'
 
-        if (connection?.passwordRequired) {
+        if (!connection) {
+          setCopy('c-pass', null)
+          $('c-pass-hint').textContent =
+            'Connection details are unavailable. Check Actions → Configure for the Stratum V1 password.'
+        } else if (connection.passwordRequired) {
           setCopy('c-pass', null, 'the Stratum V1 password')
           $('c-pass-hint').textContent =
             'Stratum V1 miners must send the password set in Actions → Configure. Stratum V2 miners need none.'

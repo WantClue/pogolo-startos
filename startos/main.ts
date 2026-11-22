@@ -35,32 +35,22 @@ export const main = sdk.setupMain(async ({ effects }) => {
   // the dashboard's "Connect your miners" card: the Stratum Server's LAN
   // addresses (with the port StartOS assigned) and what miners must send.
   // Kept current with onChange, so an address change doesn't restart pogolo.
-  const stratumUrls = sdk.host.getOwn(
-    effects,
-    mainHostId,
-    (host) =>
+  const connectionInfo = sdk.host.getOwn(effects, mainHostId, (host) => ({
+    addresses:
       host?.bindings[stratumPort]?.interfaces[
         stratumInterfaceId
       ]?.addressInfo?.nonLocal
         .filter({ visibility: 'private' })
-        .format('urlstring') ?? [],
-  )
-  const writeConnection = (urls: string[]) =>
-    connectionJson.write(effects, {
-      addresses: urls.flatMap((u) => {
-        try {
-          const url = new URL(u)
-          return [{ host: url.hostname, port: Number(url.port) || stratumPort }]
-        } catch {
-          return []
-        }
-      }),
-      passwordRequired: !!conf?.pogolo.password,
-      defaultPayoutAddress: conf?.pogolo.pool_address || null,
-    })
-  await writeConnection(await stratumUrls.once())
-  stratumUrls.onChange(async (urls) => {
-    if (urls) await writeConnection(urls)
+        .format('hostname-info')
+        .flatMap(({ hostname, port }) =>
+          port === null ? [] : [{ host: hostname, port }],
+        ) ?? [],
+    passwordRequired: !!conf?.pogolo.password,
+    defaultPayoutAddress: conf?.pogolo.pool_address || null,
+  }))
+  await connectionJson.write(effects, await connectionInfo.once())
+  connectionInfo.onChange(async (info) => {
+    if (info) await connectionJson.write(effects, info)
     return { cancel: false }
   })
 
